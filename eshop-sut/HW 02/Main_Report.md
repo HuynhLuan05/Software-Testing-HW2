@@ -86,3 +86,73 @@
     *   *Mức độ:* Cao (High).
 
 ---
+
+## 2. Tính năng B: FR-09 – Mã giảm giá (Discount Coupons)
+
+### 2.1. Tổng quan tính năng & Yêu cầu
+- **Mô tả:** Áp dụng mã giảm giá để tính toán số tiền cần trả sau giảm.
+- **Các trường dữ liệu đầu vào:**
+  - `code` (Mã giảm giá).
+  - `total_amount` (Tổng giá trị đơn hàng hiện tại).
+  - `user_id` (ID của người dùng).
+
+---
+
+### 2.2. Kiểm thử miền trị (Domain Testing)
+#### 2.2.1. Phân tích miền trị từng bước
+- **Phân hoạch tương đương (EP):**
+  - **Mã giảm giá (Coupon Code):**
+    - EP-CODE-VAL: Mã giảm giá hoạt động, tồn tại (`SAVE10`, `BIGBUY`).
+    - EP-CODE-INV-EXP: Mã giảm giá đã hết hạn (`EXPIRED`).
+    - EP-CODE-INV-NOT: Mã giảm giá không tồn tại.
+  - **Tổng giá trị đơn hàng (Total Amount) so với `min_order_amount`:**
+    - EP-VAL-ABOVE: Lớn hơn giá trị tối thiểu của mã.
+    - EP-INV-BELOW: Nhỏ hơn hoặc bằng giá trị tối thiểu của mã.
+
+#### 2.2.2. Danh sách các ca kiểm thử miền trị
+| Mã Test Case | Dữ liệu đầu vào (Input) | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+| :--- | :--- | :--- | :--- | :---: |
+| **FR09-DT-01** | code: `SAVE10`<br>total_amount: `500,000`<br>(min_order_amount = 300,000) | Áp dụng thành công, giảm 10% (giảm 50,000 ₫), giá cuối: 450,000 ₫ | Áp dụng thành công nhưng giá cuối cùng thành **5,000,000 ₫** (tăng gấp 10 lần) | **FAIL** (Lỗi tính toán phần trăm) |
+| **FR09-DT-02** | code: `BIGBUY`<br>total_amount: `600,000`<br>(min_order_amount = 500,000) | Áp dụng thành công, giảm cố định 50,000 ₫, giá cuối: 550,000 ₫ | Áp dụng thành công, giá cuối: 550,000 ₫ | **PASS** |
+| **FR09-DT-03** | code: `EXPIRED`<br>total_amount: `200,000` | Báo lỗi mã giảm giá đã hết hạn | Phản hồi lỗi "Mã giảm giá đã hết hạn" | **PASS** |
+| **FR09-DT-04** | code: `UNKNOWN`<br>total_amount: `100,000` | Báo lỗi mã không tồn tại | Phản hồi lỗi "Mã giảm giá không tồn tại..." | **PASS** |
+| **FR09-DT-05** | code: `SAVE10`<br>total_amount: `200,000` | Báo lỗi đơn hàng chưa đạt giá trị tối thiểu 300,000 ₫ | Phản hồi lỗi đơn hàng chưa đủ giá trị tối thiểu | **PASS** |
+
+---
+
+### 2.3. Phân tích giá trị biên (Boundary Value Analysis - BVA)
+#### 2.3.1. Phân tích giá trị biên từng bước
+- **Biến kiểm thử:** Tổng tiền đơn hàng (`total_amount`) so với giá trị tối thiểu (`min_order_amount` = 300,000 ₫ của mã `SAVE10`).
+- **Điểm biên:** 300,000 ₫.
+- **Các giá trị kiểm thử:**
+  - 299,999 ₫ (Min-): Không áp dụng được.
+  - 300,000 ₫ (Min): Áp dụng được (theo nghiệp vụ thông thường: đơn hàng tối thiểu 300k thì đúng 300k phải áp dụng được).
+  - 300,001 ₫ (Min+): Áp dụng được.
+
+#### 2.3.2. Danh sách các ca kiểm thử giá trị biên (BVA Test Cases)
+| Mã Test Case | Điểm biên kiểm thử | Giá trị đơn hàng đầu vào | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+| :--- | :--- | :---: | :--- | :--- | :---: |
+| **FR09-BVA-01** | Biên dưới ngoại biên (Min-) | 299,999 ₫ | Không áp dụng được (Báo lỗi chưa đủ giá trị tối thiểu) | Báo lỗi chưa đủ giá trị tối thiểu | **PASS** |
+| **FR09-BVA-02** | Đúng giá trị biên (Min) | 300,000 ₫ | Áp dụng thành công | Phản hồi lỗi: "Đơn hàng chưa đủ giá trị tối thiểu 300,000 ₫ để áp dụng" | **FAIL** (Lỗi biên lớn hơn thay vì lớn hơn hoặc bằng) |
+| **FR09-BVA-03** | Biên trên nội biên (Min+) | 300,001 ₫ | Áp dụng thành công | Áp dụng thành công (nhưng tính sai tiền) | **PASS** (Về mặt logic biên) |
+
+---
+
+### 2.4. Phân tích khoảng cách AI (AI Gap Analysis)
+- **Những gì AI đã bỏ sót:** AI không phát hiện ra rằng công thức tính tiền giảm giá theo phần trăm trong backend sử dụng toán tử sai: `Math.floor(total_amount * (1 - coupon.discount_value))` dẫn đến số tiền giảm bị âm và giá cuối cùng bị đội lên.
+- **Lý do AI bỏ sót:** Do AI chỉ phân tích đặc tả API (api_specification.md) mà không thực thi test thực tế trên endpoint này hoặc không đọc kỹ từng dòng code tính toán cụ thể trong file `server.js`.
+
+---
+
+### 2.5. Báo cáo lỗi (Bug Report)
+*   **FR09-BUG-01: Lỗi công thức tính toán giảm giá theo phần trăm (Percent discount).**
+    *   *Mô tả:* Ở `server.js` dòng 398-401, thay vì nhân với `(discount_value / 100)` để tính số tiền được giảm, mã nguồn lại dùng `(1 - discount_value)`, làm cho số tiền giảm bị tính sai (âm) và người dùng bị trả giá cao gấp 10 lần.
+    *   *Mức độ:* Nghiêm trọng (Critical).
+*   **FR09-BUG-02: Lỗi so sánh biên tối thiểu đơn hàng (`min_order_amount`).**
+    *   *Mô tả:* Logic kiểm tra ở dòng 379 dùng toán tử `total_amount > coupon.min_order_amount`. Điều này chặn không cho áp dụng mã giảm giá khi đơn hàng có giá trị đúng bằng mức tối thiểu quy định.
+    *   *Mức độ:* Trung bình (Medium).
+*   **FR09-BUG-03: Cho phép giá cuối cùng của đơn hàng bị âm.**
+    *   *Mô tả:* Khi áp dụng mã giảm giá cố định (fixed) có giá trị lớn hơn tổng giá trị giỏ hàng (ví dụ: giảm 100k cho đơn 80k), hệ thống vẫn cho phép áp dụng thành công và trả về `final_amount` là số âm (`-20,000 ₫`).
+    *   *Mức độ:* Cao (High).
+
+---
