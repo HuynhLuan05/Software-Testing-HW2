@@ -156,3 +156,68 @@
     *   *Mức độ:* Cao (High).
 
 ---
+
+## 3. Tính năng C: FR-14 – Quản lý danh mục (Category Management - CRUD)
+
+### 3.1. Tổng quan tính năng & Yêu cầu
+- **Mô tả:** Cho phép quản trị viên Thêm (Create), Đọc (Read), Cập nhật (Update), và Xóa (Delete) danh mục sản phẩm.
+- **Các trường dữ liệu đầu vào:**
+  - `name` (Tên danh mục).
+  - `id` (ID của danh mục khi sửa/xóa).
+
+---
+
+### 3.2. Kiểm thử miền trị (Domain Testing)
+#### 3.2.1. Phân tích miền trị từng bước
+- **Phân hoạch tương đương (EP):**
+  - **Tên danh mục (name):**
+    - EP-NAME-VAL: Chuỗi ký tự chữ và số hợp lệ (ví dụ: "Thiết bị số").
+    - EP-NAME-INV-EMPTY: Chuỗi rỗng hoặc khoảng trắng `""`.
+    - EP-NAME-INV-DUP: Tên danh mục đã tồn tại trong hệ thống.
+  - **ID danh mục (id):**
+    - EP-ID-VAL: ID tồn tại trong DB.
+    - EP-ID-INV: ID không tồn tại trong DB (ví dụ: `9999`).
+
+#### 3.2.2. Danh sách các ca kiểm thử miền trị
+| Mã Test Case | Hành động | Dữ liệu đầu vào (Input) | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **FR14-DT-01** | Create | name: `Gia dụng` | Tạo danh mục thành công | Tạo danh mục thành công | **PASS** |
+| **FR14-DT-02** | Create | name: `""` (Rỗng) | Báo lỗi tên danh mục không được để trống | Hệ thống tạo thành công danh mục không có tên | **FAIL** (Thiếu validation) |
+| **FR14-DT-03** | Create | name: `Laptop` (Đã có) | Báo lỗi tên danh mục đã tồn tại | Hệ thống tạo thành công danh mục trùng tên thứ hai | **FAIL** (Không kiểm tra trùng lặp) |
+| **FR14-DT-04** | Update | id: `1`, name: `Điện thoại xịn` | Cập nhật thành công | Cập nhật thành công | **PASS** |
+| **FR14-DT-05** | Update | id: `9999` (Không có), name: `Test` | Báo lỗi danh mục không tồn tại | Báo cập nhật thành công (`Category updated`) | **FAIL** (Thiếu kiểm tra sự tồn tại) |
+| **FR14-DT-06** | Delete | id: `1` (Đang chứa sp) | Báo lỗi hoặc chặn xóa vì đang chứa sản phẩm | Xóa thành công danh mục, để lại các sản phẩm bị mồ côi | **FAIL** (Lỗi toàn vẹn dữ liệu) |
+
+---
+
+### 3.3. Phân tích giá trị biên (Boundary Value Analysis - BVA)
+- **Biến kiểm thử:** Độ dài ký tự của tên danh mục (`name`).
+- Do backend sử dụng kiểu `TEXT` của SQLite và hoàn toàn không giới hạn độ dài ở backend, bất kỳ độ dài nào từ 1 ký tự trở lên (và thậm chí cả 0 ký tự) đều có thể được chèn vào DB. Tuy nhiên, theo nghiệp vụ:
+  - Biên tối thiểu: 1 ký tự.
+  - Biên tối đa (ví dụ): 50 ký tự.
+- **BVA Test Cases:**
+  - Biên dưới (0 ký tự): Hệ thống cho phép chèn (Bug).
+  - Biên trên (51 ký tự): Hệ thống cho phép chèn mà không cắt bớt hay báo lỗi.
+
+---
+
+### 3.4. Phân tích khoảng cách AI (AI Gap Analysis)
+- **Những gì AI đã bỏ sót:** AI không dự đoán được lỗi ràng buộc khóa ngoại (Foreign Key constraint) khi xóa danh mục. AI giả định rằng SQLite đã kích hoạt Foreign Key cascade hoặc chặn xóa mặc định.
+- **Lý do AI bỏ sót:** SQLite mặc định không kích hoạt chế độ kiểm tra khóa ngoại (`PRAGMA foreign_keys = ON`) trừ khi được cấu hình cụ thể khi kết nối database.
+
+---
+
+### 3.5. Báo cáo lỗi (Bug Report)
+*   **FR14-BUG-01: Cho phép xóa danh mục đang có sản phẩm liên kết.**
+    *   *Mô tả:* Khi xóa một danh mục sản phẩm (ví dụ ID = 1), hệ thống xóa thành công mà không kiểm tra xem có sản phẩm nào đang thuộc danh mục đó không, khiến dữ liệu sản phẩm bị lỗi khóa ngoại mồ côi.
+    *   *Mức độ:* Cao (High).
+*   **FR14-BUG-02: Cho phép tạo danh mục có tên trùng lặp.**
+    *   *Mô tả:* CSDL và backend không thiết lập thuộc tính `UNIQUE` cho cột `name`, cho phép tạo nhiều danh mục có cùng một tên gọi.
+    *   *Mức độ:* Trung bình (Medium).
+*   **FR14-BUG-03: Sửa/Xóa ID không tồn tại vẫn phản hồi 200 OK thành công.**
+    *   *Mô tả:* APIs `PUT /api/categories/:id` và `DELETE /api/categories/:id` không kiểm tra `this.changes`, dẫn tới việc gửi ID không tồn tại vẫn báo thành công.
+    *   *Mức độ:* Thấp (Low).
+
+---
+---
+
