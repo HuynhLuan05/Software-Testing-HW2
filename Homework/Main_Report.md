@@ -7,7 +7,7 @@
 ### 1.1. Tổng quan tính năng & Yêu cầu
 - **Mô tả:** Người dùng yêu cầu nhận mã đặt lại mật khẩu qua email. Sau đó dùng mã đó để nhập mật khẩu mới.
 - **Các trường dữ liệu đầu vào:**
-  - `email` (Chuỗi ký tự, định dạng email, độ dài).
+  - `email` (Chuỗi ký tự, định dạng email).
   - `resetToken` (Chuỗi chữ số, mã OTP gồm 4 ký tự).
   - `newPassword` (Chuỗi ký tự, độ dài và các ký tự bắt buộc).
 
@@ -84,6 +84,7 @@
 *   **FR03-BUG-02: Backend thiếu validation độ dài và độ phức tạp mật khẩu mới.**
     *   *Mô tả:* API `POST /api/reset-password` không validate mật khẩu, cho phép đặt mật khẩu cực ngắn (ví dụ: `1`) hoặc để trống (`""`).
     *   *Mức độ:* Cao (High).
+
 
 ---
 
@@ -186,7 +187,7 @@
 | **FR14-DT-03** | Create | name: `Laptop` (Đã có) | Báo lỗi tên danh mục đã tồn tại | Hệ thống tạo thành công danh mục trùng tên thứ hai | **FAIL** (Không kiểm tra trùng lặp) |
 | **FR14-DT-04** | Update | id: `1`, name: `Điện thoại xịn` | Cập nhật thành công | Cập nhật thành công | **PASS** |
 | **FR14-DT-05** | Update | id: `9999` (Không có), name: `Test` | Báo lỗi danh mục không tồn tại | Báo cập nhật thành công (`Category updated`) | **FAIL** (Thiếu kiểm tra sự tồn tại) |
-| **FR14-DT-06** | Delete | id: `1` (Đang chứa sp) | Báo lỗi hoặc chặn xóa vì đang chứa sản phẩm | Xóa thành công danh mục, để lại các sản phẩm bị mồ côi | **FAIL** (Lỗi toàn vẹn dữ liệu) |
+| **FR14-DT-06** | Delete | id: `1` (Đang chứa sp) | Báo lỗi hoặc chặn xóa vì đang chứa sản phẩm | Xóa thành công danh mục, để lại các sản phẩm không có danh mục | **FAIL** (Lỗi toàn vẹn dữ liệu) |
 
 ---
 
@@ -219,67 +220,73 @@
     *   *Mức độ:* Thấp (Low).
 
 ---
----
 
-## 4. Tính năng D: Mobile App – Giỏ hàng (Shopping Cart - FR-07 mobile)
+## 4. Tính năng D: Mobile App – Tìm kiếm sản phẩm (Product Search - FR-05 mobile)
 
 ### 4.1. Tổng quan tính năng & Yêu cầu
-- **Mô tả:** Người dùng quản lý số lượng sản phẩm trong giỏ hàng trên ứng dụng di động và thực hiện đặt hàng.
+- **Mô tả:** Người dùng nhập từ khóa vào ô tìm kiếm trên ứng dụng di động để lọc và hiển thị các sản phẩm có tên khớp với từ khóa tìm kiếm.
 - **Các trường dữ liệu đầu vào:**
-  - Số lượng sản phẩm nhập trực tiếp (`item.quantity`).
-  - Danh sách các sản phẩm gửi đi thanh toán.
+  - `search` (Chuỗi ký tự nhập vào ô tìm kiếm).
 
 ---
 
 ### 4.2. Kiểm thử miền trị (Domain Testing)
 #### 4.2.1. Phân tích miền trị từng bước
 - **Phân hoạch tương đương (EP):**
-  - **Số lượng nhập vào ô số lượng của giỏ hàng:**
-    - EP-QTY-VAL: Số nguyên lớn hơn 0 (ví dụ: `5`).
-    - EP-QTY-INV-ZERO: Nhập số `0`.
-    - EP-QTY-INV-NEG: Nhập số âm (ví dụ: `-2`).
-    - EP-QTY-INV-CHAR: Nhập ký tự chữ hoặc ký tự đặc biệt.
+  - **Từ khóa tìm kiếm (search):**
+    - EP-SEARCH-VAL-EXACT: Chuỗi ký tự khớp chính xác tên sản phẩm trong CSDL (ví dụ: `"iPhone 13"`).
+    - EP-SEARCH-VAL-PARTIAL: Chuỗi ký tự khớp một phần tên sản phẩm (ví dụ: `"Phone"`).
+    - EP-SEARCH-VAL-NONE: Chuỗi ký tự không khớp với bất kỳ sản phẩm nào (ví dụ: `"Nokia 3310"`).
+    - EP-SEARCH-VAL-EMPTY: Chuỗi rỗng `""` (hiển thị toàn bộ sản phẩm).
+    - EP-SEARCH-INV-SQLINJ: Chuỗi chứa payload SQL Injection (ví dụ: `"' OR 1=1 --"`).
+    - EP-SEARCH-INV-SPECIALCHAR: Chuỗi chứa ký tự đại diện wildcard của SQL LIKE (ví dụ: `"%"` hoặc `"_"`).
 
-#### 4.2.2. Danh sách các ca kiểm thử miền trị
-| Mã Test Case | Hành động | Dữ liệu đầu vào (Input) | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+#### 4.2.2. Danh sách các ca kiểm thử miền trị (Domain Test Cases)
+| Mã Test Case | Hành động | Dữ liệu đầu vào (Input) | Kết quả mong đợi (Expected) | Kết quả thực tế (Actual) | Trạng thái |
 | :--- | :--- | :--- | :--- | :--- | :---: |
-| **FR07M-DT-01** | Nhập số lượng trực tiếp | Nhập `5` vào ô số lượng của item | Số lượng trong giỏ hàng được cập nhật thành `5` | Số lượng trong giỏ hàng bị cập nhật thành **6** | **FAIL** (Lỗi cộng thêm 1) |
-| **FR07M-DT-02** | Nhập số lượng rỗng | Nhập trống | Trả về số lượng mặc định là 1 | Cập nhật số lượng về 1 | **PASS** |
-| **FR07M-DT-03** | Thanh toán giỏ hàng | Giỏ hàng gồm: {Sản phẩm A, Sản phẩm B} | Đơn hàng tạo ra chứa đầy đủ cả 2 sản phẩm A và B | Đơn hàng chỉ chứa sản phẩm A, sản phẩm B bị mất | **FAIL** (Mất sản phẩm cuối cùng) |
+| **FR05M-DT-01** | Tìm kiếm chính xác | search: `"iPhone 13"` | Chỉ hiển thị sản phẩm "iPhone 13" | Hiển thị sản phẩm "iPhone 13" | **PASS** |
+| **FR05M-DT-02** | Tìm kiếm một phần | search: `"Phone"` | Hiển thị tất cả sản phẩm chứa chữ "Phone" | Hiển thị các sản phẩm chứa chữ "Phone" | **PASS** |
+| **FR05M-DT-03** | Tìm kiếm không có kết quả | search: `"Nokia 3310"` | Hiển thị 0 sản phẩm | Hiển thị 0 sản phẩm | **PASS** |
+| **FR05M-DT-04** | Tìm kiếm bằng chuỗi rỗng | search: `""` | Hiển thị toàn bộ sản phẩm trong hệ thống | Hiển thị toàn bộ sản phẩm | **PASS** |
+| **FR05M-DT-05** | Tìm kiếm bằng SQL Injection | search: `"' OR 1=1 --"` | Không bị SQL Injection, trả về 0 sản phẩm hoặc báo lỗi tìm kiếm | Trả về toàn bộ sản phẩm (SQL Injection thành công) | **FAIL** (Lỗi bảo mật nghiêm trọng) |
+| **FR05M-DT-06** | Tìm kiếm chứa wildcard | search: `"%"` | Chỉ hiển thị sản phẩm thực sự chứa ký tự `%` hoặc báo 0 kết quả | Trả về toàn bộ sản phẩm | **FAIL** (Không escape ký tự wildcard) |
+| **FR05M-DT-07** | Tìm kiếm chứa dấu nháy đơn lỗi cú pháp | search: `"'"` | Hệ thống hoạt động bình thường, trả về 0 kết quả | Bị lỗi cú pháp SQL và phản hồi trang lỗi HTML `500` thô làm lỗi hiển thị trên ứng dụng di động | **FAIL** (Lỗi hiển thị HTML + Lỗi SQLi) |
 
 ---
 
 ### 4.3. Phân tích giá trị biên (Boundary Value Analysis - BVA)
 #### 4.3.1. Phân tích giá trị biên từng bước
-- **Biến kiểm thử:** Số lượng sản phẩm đầu vào của giỏ hàng.
-- **Biên tối thiểu hợp lệ:** 1.
-- **Giá trị kiểm thử:**
-  - 0 (Ngoại biên dưới): Không được chấp nhận (hoặc tự reset về 1).
-  - 1 (Biên dưới): Cập nhật số lượng thành 1.
-  - 2 (Nội biên dưới): Cập nhật số lượng thành 2.
+- **Biến kiểm thử:** Độ dài ký tự của từ khóa tìm kiếm (`search`).
+- **Biên tối thiểu:** 1 ký tự. Biên tối đa (dự kiến): 255 ký tự.
+- **Các điểm biên xác định (3-point BVA):**
+  - Cận dưới: 1 ký tự. Giá trị thử nghiệm: 0 ký tự (Min-), 1 ký tự (Min), 2 ký tự (Min+).
+  - Cận trên: 255 ký tự. Giá trị thử nghiệm: 254 ký tự (Max-), 255 ký tự (Max), 256 ký tự (Max+).
 
-#### 4.3.2. Danh sách các ca kiểm thử giá trị biên
-| Mã Test Case | Điểm biên kiểm thử | Số lượng nhập vào | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
-| :--- | :--- | :---: | :--- | :--- | :---: |
-| **FR07M-BVA-01** | Biên dưới ngoại biên | 0 | Đặt về số lượng mặc định là 1 | Cập nhật số lượng thành 1 | **PASS** |
-| **FR07M-BVA-02** | Biên dưới nội biên | 1 | Cập nhật thành 1 | Số lượng bị gán thành **2** | **FAIL** |
-| **FR07M-BVA-03** | Biên dưới nội biên | 2 | Cập nhật thành 2 | Số lượng bị gán thành **3** | **FAIL** |
+#### 4.3.2. Danh sách các ca kiểm thử giá trị biên (BVA Test Cases)
+| Mã Test Case | Điểm biên kiểm thử | Độ dài từ khóa | Dữ liệu đầu vào (Input) | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+| :--- | :--- | :---: | :--- | :--- | :--- | :---: |
+| **FR05M-BVA-01** | Cận dưới ngoại biên (Min-) | 0 | `""` | Trả về toàn bộ sản phẩm | Trả về toàn bộ sản phẩm | **PASS** |
+| **FR05M-BVA-02** | Cận dưới nội biên (Min) | 1 | `"i"` | Trả về sản phẩm chứa ký tự "i" | Trả về sản phẩm chứa ký tự "i" | **PASS** |
+| **FR05M-BVA-03** | Cận dưới nội biên (Min+) | 2 | `"iP"` | Trả về sản phẩm chứa ký tự "iP" | Trả về sản phẩm chứa ký tự "iP" | **PASS** |
+| **FR05M-BVA-04** | Cận trên nội biên (Max-) | 254 | Chuỗi 254 ký tự | Trả về 0 kết quả (Tìm kiếm an toàn) | Trả về 0 kết quả | **PASS** |
+| **FR05M-BVA-05** | Cận trên nội biên (Max) | 255 | Chuỗi 255 ký tự | Trả về 0 kết quả (Tìm kiếm an toàn) | Trả về 0 kết quả | **PASS** |
+| **FR05M-BVA-06** | Cận trên ngoại biên (Max+) | 256 | Chuỗi 256 ký tự | Báo lỗi giới hạn ký tự nhập vào hoặc tự động cắt ngắn | Tìm kiếm bình thường, trả về 0 kết quả | **FAIL** (Không giới hạn độ dài ký tự) |
 
 ---
 
 ### 4.4. Phân tích khoảng cách AI (AI Gap Analysis)
-- **Những gì AI đã bỏ sót:** AI không nhận diện được lỗi gán số lượng `parsed + 1` và lỗi cắt bớt sản phẩm cuối cùng `cart.slice(0, -1)` trong mã React Native của file `App.js`.
-- **Lý do AI bỏ sót:** AI chỉ kiểm tra bề nổi của giao diện và không chạy thử nghiệm giả lập ứng dụng di động thực tế với giỏ hàng nhiều sản phẩm.
+- **Những gì AI đã bỏ sót:** AI không phát hiện ra lỗ hổng SQL Injection nghiêm trọng tại endpoint tìm kiếm sản phẩm và việc trả về mã nguồn lỗi dạng trang web HTML thay vì định dạng JSON làm hỏng giao diện di động React Native.
+- **Lý do AI bỏ sót:** AI thường giả định rằng các framework hoặc thư viện hiện đại tự động ngăn chặn lỗi SQL Injection bằng Parameterized Queries và tự động parse định dạng lỗi API JSON thống nhất.
 
 ---
 
 ### 4.5. Báo cáo lỗi (Bug Report)
-*   **FR07M-BUG-01: Lỗi cộng thừa số lượng khi sửa trực tiếp (Off-by-one).**
-    *   *Mô tả:* Trong màn hình Cart, ô nhập số lượng có mã xử lý gán `quantity = parsed + 1`, khiến số lượng luôn lớn hơn số người dùng thực nhập 1 đơn vị.
-    *   *Mức độ:* Cao (High).
-*   **FR07M-BUG-02: Thanh toán bị mất sản phẩm cuối cùng trong giỏ hàng.**
-    *   *Mô tả:* Khi xác nhận thanh toán (checkout), mã nguồn frontend dùng `items: cart.length > 1 ? cart.slice(0, -1) : cart` làm cắt bỏ đi sản phẩm cuối cùng của giỏ hàng khi giỏ hàng có từ 2 sản phẩm trở lên.
+*   **FR05M-BUG-01: Lỗ hổng SQL Injection nghiêm trọng trong API tìm kiếm sản phẩm.**
+    *   *Mô tả:* API `/api/products?search=` trực tiếp nối chuỗi truy vấn đầu vào vào câu lệnh SQL thay vì dùng tham số hóa, cho phép kẻ tấn công chèn mã lệnh SQL nguy hiểm.
     *   *Mức độ:* Nghiêm trọng (Critical).
-*   **FR07M-BUG-03: Ô nhập tổng tiền thanh toán hiển thị sai giá trị sau khi giảm giá.**
-    *   *Mô tả:* Màn hình Checkout hiển thị tổng tiền thanh toán trong disabled input là `cartTotal` gốc thay vì số tiền đã giảm `couponResult.final_amount` mặc dù dòng chữ text bên dưới hiển thị đúng.
-    *   *Mức độ:* Thấp (Low).
+*   **FR05M-BUG-02: Phản hồi lỗi định dạng HTML thô làm lỗi giao diện ứng dụng di động.**
+    *   *Mô tả:* Khi truy vấn SQL lỗi (ví dụ chứa `'`), backend trả về mã lỗi HTML thô khiến ứng dụng di động không parse được JSON và hiển thị chuỗi HTML thô lên màn hình.
+    *   *Mức độ:* Cao (High).
+*   **FR05M-BUG-03: Không lọc ký tự đại diện `%` và `_` khi tìm kiếm.**
+    *   *Mô tả:* Nhập ký tự `%` hoặc `_` trong ô tìm kiếm sẽ trả về tất cả sản phẩm thay vì khớp ký tự thực tế do thiếu xử lý làm sạch (escaping) wildcard của mệnh đề `LIKE`.
+    *   *Mức độ:* Trung bình (Medium).
