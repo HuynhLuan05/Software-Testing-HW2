@@ -221,3 +221,65 @@
 ---
 ---
 
+## 4. Tính năng D: Mobile App – Giỏ hàng (Shopping Cart - FR-07 mobile)
+
+### 4.1. Tổng quan tính năng & Yêu cầu
+- **Mô tả:** Người dùng quản lý số lượng sản phẩm trong giỏ hàng trên ứng dụng di động và thực hiện đặt hàng.
+- **Các trường dữ liệu đầu vào:**
+  - Số lượng sản phẩm nhập trực tiếp (`item.quantity`).
+  - Danh sách các sản phẩm gửi đi thanh toán.
+
+---
+
+### 4.2. Kiểm thử miền trị (Domain Testing)
+#### 4.2.1. Phân tích miền trị từng bước
+- **Phân hoạch tương đương (EP):**
+  - **Số lượng nhập vào ô số lượng của giỏ hàng:**
+    - EP-QTY-VAL: Số nguyên lớn hơn 0 (ví dụ: `5`).
+    - EP-QTY-INV-ZERO: Nhập số `0`.
+    - EP-QTY-INV-NEG: Nhập số âm (ví dụ: `-2`).
+    - EP-QTY-INV-CHAR: Nhập ký tự chữ hoặc ký tự đặc biệt.
+
+#### 4.2.2. Danh sách các ca kiểm thử miền trị
+| Mã Test Case | Hành động | Dữ liệu đầu vào (Input) | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **FR07M-DT-01** | Nhập số lượng trực tiếp | Nhập `5` vào ô số lượng của item | Số lượng trong giỏ hàng được cập nhật thành `5` | Số lượng trong giỏ hàng bị cập nhật thành **6** | **FAIL** (Lỗi cộng thêm 1) |
+| **FR07M-DT-02** | Nhập số lượng rỗng | Nhập trống | Trả về số lượng mặc định là 1 | Cập nhật số lượng về 1 | **PASS** |
+| **FR07M-DT-03** | Thanh toán giỏ hàng | Giỏ hàng gồm: {Sản phẩm A, Sản phẩm B} | Đơn hàng tạo ra chứa đầy đủ cả 2 sản phẩm A và B | Đơn hàng chỉ chứa sản phẩm A, sản phẩm B bị mất | **FAIL** (Mất sản phẩm cuối cùng) |
+
+---
+
+### 4.3. Phân tích giá trị biên (Boundary Value Analysis - BVA)
+#### 4.3.1. Phân tích giá trị biên từng bước
+- **Biến kiểm thử:** Số lượng sản phẩm đầu vào của giỏ hàng.
+- **Biên tối thiểu hợp lệ:** 1.
+- **Giá trị kiểm thử:**
+  - 0 (Ngoại biên dưới): Không được chấp nhận (hoặc tự reset về 1).
+  - 1 (Biên dưới): Cập nhật số lượng thành 1.
+  - 2 (Nội biên dưới): Cập nhật số lượng thành 2.
+
+#### 4.3.2. Danh sách các ca kiểm thử giá trị biên
+| Mã Test Case | Điểm biên kiểm thử | Số lượng nhập vào | Kết quả mong đợi | Kết quả thực tế | Trạng thái |
+| :--- | :--- | :---: | :--- | :--- | :---: |
+| **FR07M-BVA-01** | Biên dưới ngoại biên | 0 | Đặt về số lượng mặc định là 1 | Cập nhật số lượng thành 1 | **PASS** |
+| **FR07M-BVA-02** | Biên dưới nội biên | 1 | Cập nhật thành 1 | Số lượng bị gán thành **2** | **FAIL** |
+| **FR07M-BVA-03** | Biên dưới nội biên | 2 | Cập nhật thành 2 | Số lượng bị gán thành **3** | **FAIL** |
+
+---
+
+### 4.4. Phân tích khoảng cách AI (AI Gap Analysis)
+- **Những gì AI đã bỏ sót:** AI không nhận diện được lỗi gán số lượng `parsed + 1` và lỗi cắt bớt sản phẩm cuối cùng `cart.slice(0, -1)` trong mã React Native của file `App.js`.
+- **Lý do AI bỏ sót:** AI chỉ kiểm tra bề nổi của giao diện và không chạy thử nghiệm giả lập ứng dụng di động thực tế với giỏ hàng nhiều sản phẩm.
+
+---
+
+### 4.5. Báo cáo lỗi (Bug Report)
+*   **FR07M-BUG-01: Lỗi cộng thừa số lượng khi sửa trực tiếp (Off-by-one).**
+    *   *Mô tả:* Trong màn hình Cart, ô nhập số lượng có mã xử lý gán `quantity = parsed + 1`, khiến số lượng luôn lớn hơn số người dùng thực nhập 1 đơn vị.
+    *   *Mức độ:* Cao (High).
+*   **FR07M-BUG-02: Thanh toán bị mất sản phẩm cuối cùng trong giỏ hàng.**
+    *   *Mô tả:* Khi xác nhận thanh toán (checkout), mã nguồn frontend dùng `items: cart.length > 1 ? cart.slice(0, -1) : cart` làm cắt bỏ đi sản phẩm cuối cùng của giỏ hàng khi giỏ hàng có từ 2 sản phẩm trở lên.
+    *   *Mức độ:* Nghiêm trọng (Critical).
+*   **FR07M-BUG-03: Ô nhập tổng tiền thanh toán hiển thị sai giá trị sau khi giảm giá.**
+    *   *Mô tả:* Màn hình Checkout hiển thị tổng tiền thanh toán trong disabled input là `cartTotal` gốc thay vì số tiền đã giảm `couponResult.final_amount` mặc dù dòng chữ text bên dưới hiển thị đúng.
+    *   *Mức độ:* Thấp (Low).
