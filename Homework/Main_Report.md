@@ -77,17 +77,6 @@
 
 ---
 
-### 1.5. Báo cáo lỗi (Bug Report)
-*   **FR03-BUG-01: Lộ mã resetToken qua API Response.**
-    *   *Mô tả:* Endpoint `POST /api/forgot-password` trả về mã OTP trực tiếp trong response body: `{"message": "Mã đặt lại mật khẩu đã được tạo", "resetToken": "123456"}`. Điều này giúp bất kỳ ai biết email người khác đều có thể lấy được OTP và đặt lại mật khẩu.
-    *   *Mức độ:* Nghiêm trọng (Critical).
-*   **FR03-BUG-02: Backend thiếu validation độ dài và độ phức tạp mật khẩu mới.**
-    *   *Mô tả:* API `POST /api/reset-password` không validate mật khẩu, cho phép đặt mật khẩu cực ngắn (ví dụ: `1`) hoặc để trống (`""`).
-    *   *Mức độ:* Cao (High).
-
-
----
-
 ## 2. Tính năng B: FR-09 – Mã giảm giá (Discount Coupons)
 
 ### 2.1. Tổng quan tính năng & Yêu cầu
@@ -145,19 +134,6 @@
 
 ---
 
-### 2.5. Báo cáo lỗi (Bug Report)
-*   **FR09-BUG-01: Lỗi công thức tính toán giảm giá theo phần trăm (Percent discount).**
-    *   *Mô tả:* Ở `server.js` dòng 398-401, thay vì nhân với `(discount_value / 100)` để tính số tiền được giảm, mã nguồn lại dùng `(1 - discount_value)`, làm cho số tiền giảm bị tính sai (âm) và người dùng bị trả giá cao gấp 10 lần.
-    *   *Mức độ:* Nghiêm trọng (Critical).
-*   **FR09-BUG-02: Lỗi so sánh biên tối thiểu đơn hàng (`min_order_amount`).**
-    *   *Mô tả:* Logic kiểm tra ở dòng 379 dùng toán tử `total_amount > coupon.min_order_amount`. Điều này chặn không cho áp dụng mã giảm giá khi đơn hàng có giá trị đúng bằng mức tối thiểu quy định.
-    *   *Mức độ:* Trung bình (Medium).
-*   **FR09-BUG-03: Cho phép giá cuối cùng của đơn hàng bị âm.**
-    *   *Mô tả:* Khi áp dụng mã giảm giá cố định (fixed) có giá trị lớn hơn tổng giá trị giỏ hàng (ví dụ: giảm 100k cho đơn 80k), hệ thống vẫn cho phép áp dụng thành công và trả về `final_amount` là số âm (`-20,000 ₫`).
-    *   *Mức độ:* Cao (High).
-
----
-
 ## 3. Tính năng C: FR-14 – Quản lý danh mục (Category Management - CRUD)
 
 ### 3.1. Tổng quan tính năng & Yêu cầu
@@ -205,19 +181,6 @@
 ### 3.4. Phân tích khoảng cách AI (AI Gap Analysis)
 - **Những gì AI đã bỏ sót:** AI không dự đoán được lỗi ràng buộc khóa ngoại (Foreign Key constraint) khi xóa danh mục. AI giả định rằng SQLite đã kích hoạt Foreign Key cascade hoặc chặn xóa mặc định.
 - **Lý do AI bỏ sót:** SQLite mặc định không kích hoạt chế độ kiểm tra khóa ngoại (`PRAGMA foreign_keys = ON`) trừ khi được cấu hình cụ thể khi kết nối database.
-
----
-
-### 3.5. Báo cáo lỗi (Bug Report)
-*   **FR14-BUG-01: Cho phép xóa danh mục đang có sản phẩm liên kết.**
-    *   *Mô tả:* Khi xóa một danh mục sản phẩm (ví dụ ID = 1), hệ thống xóa thành công mà không kiểm tra xem có sản phẩm nào đang thuộc danh mục đó không, khiến dữ liệu sản phẩm bị lỗi khóa ngoại mồ côi.
-    *   *Mức độ:* Cao (High).
-*   **FR14-BUG-02: Cho phép tạo danh mục có tên trùng lặp.**
-    *   *Mô tả:* CSDL và backend không thiết lập thuộc tính `UNIQUE` cho cột `name`, cho phép tạo nhiều danh mục có cùng một tên gọi.
-    *   *Mức độ:* Trung bình (Medium).
-*   **FR14-BUG-03: Sửa/Xóa ID không tồn tại vẫn phản hồi 200 OK thành công.**
-    *   *Mô tả:* APIs `PUT /api/categories/:id` và `DELETE /api/categories/:id` không kiểm tra `this.changes`, dẫn tới việc gửi ID không tồn tại vẫn báo thành công.
-    *   *Mức độ:* Thấp (Low).
 
 ---
 
@@ -280,13 +243,3 @@
 
 ---
 
-### 4.5. Báo cáo lỗi (Bug Report)
-*   **FR05M-BUG-01: Lỗ hổng SQL Injection nghiêm trọng trong API tìm kiếm sản phẩm.**
-    *   *Mô tả:* API `/api/products?search=` trực tiếp nối chuỗi truy vấn đầu vào vào câu lệnh SQL thay vì dùng tham số hóa, cho phép kẻ tấn công chèn mã lệnh SQL nguy hiểm.
-    *   *Mức độ:* Nghiêm trọng (Critical).
-*   **FR05M-BUG-02: Phản hồi lỗi định dạng HTML thô làm lỗi giao diện ứng dụng di động.**
-    *   *Mô tả:* Khi truy vấn SQL lỗi (ví dụ chứa `'`), backend trả về mã lỗi HTML thô khiến ứng dụng di động không parse được JSON và hiển thị chuỗi HTML thô lên màn hình.
-    *   *Mức độ:* Cao (High).
-*   **FR05M-BUG-03: Không lọc ký tự đại diện `%` và `_` khi tìm kiếm.**
-    *   *Mô tả:* Nhập ký tự `%` hoặc `_` trong ô tìm kiếm sẽ trả về tất cả sản phẩm thay vì khớp ký tự thực tế do thiếu xử lý làm sạch (escaping) wildcard của mệnh đề `LIKE`.
-    *   *Mức độ:* Trung bình (Medium).
